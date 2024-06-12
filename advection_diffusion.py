@@ -18,49 +18,51 @@ Create Your Own Automatically Differentiable Simulation (With Python/JAX)
 Philip Mocz (2024), @PMocz
 
 Solve the advection-diffusion equation using a finite difference method
-Plug it into an optimization problem to find the wind parameters that maximize pollution at the center of the domain
-Use either 'L-BFGS-B' method with finite difference gradient estimates (Numpy/SciPy) or autodiff (JAX) to solve the optimization problem
+Plug it into an optimization problem to find the wind parameters that maximize 
+pollution at the center of the domain.
+Use either 'L-BFGS-B' method with finite difference gradient estimates (Numpy/SciPy) 
+or autodiff (JAX) to solve the optimization problem
 """
 
 # Global variables
 W = 0.5
 diffusivity = 0.05
 t_end = 0.25
-N = 61
-M = 50
+N = 61 # number of grid points
+M = 50 # number of time steps
 dx = 1.0 / (N-1)
 dt = t_end / M
-t = np.linspace(0, t_end, M+1)
+t = np.linspace(0, t_end, M+1) # time-array
 
 
 # === Numpy version of the simulation ========================================
 
 def index_function(i, j, N):
-  # maps index (i,j) to the vector index in our solution vector 
-  # (the grid size is N^2)
-  return j*N + i
+    # maps index (i,j) to the vector index in our solution vector 
+    # (the grid size is N^2)
+    return j*N + i
 
 
 def initial_condition(x, y):
-  # initial condition for the pollution
-  return 2.0*np.exp(-100.0*((x-0.25)**2+(y-0.25)**2))+np.exp(-150.0*((x-0.65)**2+(y-0.4)**2))
+    # initial condition for the pollution
+    return 2.0*np.exp(-100.0*((x-0.25)**2+(y-0.25)**2))+np.exp(-150.0*((x-0.65)**2+(y-0.4)**2))
 
 
 def build_matrix(theta):
-  # Construct the matrix (D) and its LU decomposition for the linear system to be solved at each time step
-  D = np.eye(N**2, N**2)
-  for i in range(1, N-1):
-    for j in range(1, N-1):
-      D[index_function(i,j,N),index_function(i,j,N)]   = dt*(1.0/dt + 4.0*diffusivity/dx**2)
-      D[index_function(i,j,N),index_function(i+1,j,N)] = dt*( W*np.cos(theta)/(2.0*dx) - diffusivity/dx**2)
-      D[index_function(i,j,N),index_function(i-1,j,N)] = dt*(-W*np.cos(theta)/(2.0*dx) - diffusivity/dx**2)
-      D[index_function(i,j,N),index_function(i,j+1,N)] = dt*( W*np.sin(theta)/(2.0*dx) - diffusivity/dx**2)
-      D[index_function(i,j,N),index_function(i,j-1,N)] = dt*(-W*np.sin(theta)/(2.0*dx) - diffusivity/dx**2)
+    # Construct the matrix (D) and its LU decomposition for the linear system to be solved at each time step
+    D = np.eye(N**2, N**2)
+    for i in range(1, N-1):
+        for j in range(1, N-1):
+            D[index_function(i,j,N),index_function(i,j,N)]   = dt*(1.0/dt + 4.0*diffusivity/dx**2)
+            D[index_function(i,j,N),index_function(i+1,j,N)] = dt*( W*np.cos(theta)/(2.0*dx) - diffusivity/dx**2)
+            D[index_function(i,j,N),index_function(i-1,j,N)] = dt*(-W*np.cos(theta)/(2.0*dx) - diffusivity/dx**2)
+            D[index_function(i,j,N),index_function(i,j+1,N)] = dt*( W*np.sin(theta)/(2.0*dx) - diffusivity/dx**2)
+            D[index_function(i,j,N),index_function(i,j-1,N)] = dt*(-W*np.sin(theta)/(2.0*dx) - diffusivity/dx**2)
 
-  D = csc_matrix(D)  # sparse representation of the matrix
-  B = splu(D)        # do an LU decomposition of the matrix
+    D = csc_matrix(D)  # sparse representation of the matrix
+    B = splu(D)        # do an LU decomposition of the matrix
 
-  return B
+    return B
 
 
 def do_simulation(x):
